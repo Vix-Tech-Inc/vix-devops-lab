@@ -1,4 +1,4 @@
-name: VIX Platform — CI Pipeline
+name: Vix Platform — CI Pipeline
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: '22'
+  WORKING_DIR: '01-cicd-pipeline'
 
 jobs:
   # ─── Job 1: Code Quality ───────────────────────────────────────
@@ -24,15 +25,18 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: '01-cicd-pipeline/package-lock.json'
 
       - name: Install dependencies
+        working-directory: ${{ env.WORKING_DIR }}
         run: npm ci
 
       - name: TypeScript type check
+        working-directory: ${{ env.WORKING_DIR }}
         run: npx tsc --noEmit
 
       - name: ESLint check
+        working-directory: ${{ env.WORKING_DIR }}
         run: npm run lint
 
   # ─── Job 2: Build ──────────────────────────────────────────────
@@ -50,11 +54,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: '01-cicd-pipeline/package-lock.json'
 
       - name: Install dependencies
+        working-directory: ${{ env.WORKING_DIR }}
         run: npm ci
 
       - name: Build Next.js app
+        working-directory: ${{ env.WORKING_DIR }}
         run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
@@ -63,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
-          path: .next/
+          path: 01-cicd-pipeline/.next/
           retention-days: 1
 
   # ─── Job 3: Docker Build ───────────────────────────────────────
