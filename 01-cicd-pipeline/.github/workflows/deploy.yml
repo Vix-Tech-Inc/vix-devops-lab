@@ -1,0 +1,100 @@
+name: VIX Platform — Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ─── Deploy to Vercel ──────────────────────────────────────────
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build for Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> $GITHUB_OUTPUT
+
+      - name: Comment deployment URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `✅ **Deployed to:** ${{ steps.deploy.outputs.url }}`
+            })
+
+  # ─── Post-Deploy Health Check ──────────────────────────────────
+  health-check:
+    name: Post-Deploy Health Check
+    runs-on: ubuntu-latest
+    needs: deploy-vercel
+
+    steps:
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PRODUCTION_URL }})
+          if [ $response -eq 200 ]; then
+            echo "✅ Health check passed — site is live"
+          else
+            echo "❌ Health check failed — HTTP $response"
+            exit 1
+          fi
+
+  # ─── Notify Team ───────────────────────────────────────────────
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [deploy-vercel, health-check]
+    if: always()
+
+    steps:
+      - name: Deployment notification
+        run: |
+          if [ "${{ needs.health-check.result }}" == "success" ]; then
+            echo "🚀 VIX Platform deployed successfully to production"
+          else
+            echo "❌ VIX Platform deployment failed"
+          fi

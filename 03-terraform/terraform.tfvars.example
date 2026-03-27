@@ -1,0 +1,17 @@
+# VIX Technologies — Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to version control
+
+project_name    = "vixplatform"
+environment     = "production"
+location        = "East US"
+app_service_sku = "B2"
+
+# Database credentials (use strong passwords)
+db_admin_username = "vixadmin"
+db_admin_password = "REPLACE_WITH_STRONG_PASSWORD"
+
+# API Keys (get from respective providers)
+anthropic_api_key = "sk-ant-REPLACE_WITH_KEY"
+supabase_url      = "https://REPLACE.supabase.co"
+supabase_anon_key = "REPLACE_WITH_KEY"
